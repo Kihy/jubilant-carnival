@@ -23,14 +23,17 @@ def tag_stats():
     db,cur=db_connect()
     members=find_member(cur)
     cur.execute(
-            'SELECT description,minutesSpent FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
+            'SELECT description FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
 
     counter=0
-    hash_dict={'#invalid':0}
+    hash_dict={'#invalid':0, '#none':0}
     invalid_dict={}
     for row in cur.fetchall():
         counter+=1
-        valid, invalid=extract_hash(row)
+        valid, invalid=extract_hash(row[0])
+        if len(valid+invalid)==0:
+            hash_dict['#none']+=1
+            continue
         for good in valid:
             if good=="#commits":
                 continue
@@ -63,4 +66,24 @@ def plot_pretty_graphs(hash_dict,invalid_dict):
     plot_graph.plot_pie(invalid_dict.keys(),invalid_dict.values(),startangle=0)
 
 def time_stats():
-    return
+    db,cur=db_connect()
+    members=find_member(cur)
+    cur.execute(
+            'SELECT description,minutesSpent,user_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\" AND story_id != NULL'.format(members))
+    user_id=[]
+    time_spent=[]
+    for row in cur.fetchall():
+        valid,invalid=extract_hash(row[0],"commits")
+        if len(valid+invalid)!=0:
+            user_id.append(row[2])
+            time_spent.append(int(row[1]))
+    plot_graph.plot_scatter(user_id,time_spent)
+
+def bus_factor():
+    db,cur=db_connect()
+    members=find_member(cur)
+    cur.execute(
+            'SELECT description,minutesSpent,user_id,story_id,backlog_id,task_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
+    for row in cur.fetchall():
+        print(row)
+bus_factor()

@@ -12,3 +12,9 @@ def plot_pie(labels,sizes,explode=None, startangle=90):
     plt.axis('equal')
     # plt.tight_layout()
     plt.show()
+
+def plot_scatter(x,y):
+    plt.style.use('ggplot')
+    plt.scatter(x,y)
+    plt.plot([540,618],[60,60], 'g--', lw=1)
+    plt.show()

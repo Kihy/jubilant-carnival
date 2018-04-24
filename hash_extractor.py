@@ -4,7 +4,7 @@ VALID_TAGS=["#implement","#test","#document","#testmanual","#fix","#chore","#ref
 def extract_hash(message,tag_specifier=""):
     valid=[]
     invalid=[]
-    for i in message[0].split():
+    for i in message.split():
         if i.startswith("#{}".format(tag_specifier)):
             tag=re.sub('\[.*\]','',i)
             if tag in VALID_TAGS:
