@@ -2,6 +2,31 @@ import MySQLdb
 from hash_extractor import *
 import plot_graph
 
+GET_EVERYTHING="""
+SELECT description AS story_description,
+       name        AS story_name,
+       date,
+       commit_description,
+       minutesspent,
+       user_id,
+       task_id,
+       story_id
+FROM   (SELECT date,
+               hourentries.description AS commit_description,
+               minutesspent,
+               user_id,
+               task_id,
+               tasks.story_id
+        FROM   hourentries
+               LEFT JOIN tasks
+                      ON tasks.id = hourentries.task_id)AS T
+       LEFT JOIN stories
+              ON stories.id = T.story_id
+WHERE  user_id IN ( 540, 548, 555, 560,
+                    578, 590, 605, 618 )
+       AND date >= "2018-03-26"
+       AND T.story_id IS NOT NULL
+"""
 def find_member(cursor):
     cursor.execute('SELECT id,fullName FROM users WHERE initials IN ("jto59","tke29","och26","ewi32","mjs351","dca87","ato47","jes143")')
     ids=[]
@@ -63,13 +88,14 @@ def plot_pretty_graphs(hash_dict,invalid_dict):
     plot_graph.plot_pie(labels,values,explode)
 
     #plots invalid hashes
-    plot_graph.plot_pie(invalid_dict.keys(),invalid_dict.values(),startangle=0)
+    plot_graph.plot_pie(list(invalid_dict.keys()),list(invalid_dict.values()),startangle=0)
 
 def time_stats():
     db,cur=db_connect()
     members=find_member(cur)
     cur.execute(
             'SELECT description,minutesSpent,user_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\" AND story_id != NULL'.format(members))
+    print('SELECT description,minutesSpent,user_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\" AND story_id != NULL'.format(members))
     user_id=[]
     time_spent=[]
     for row in cur.fetchall():
@@ -78,6 +104,7 @@ def time_stats():
             user_id.append(row[2])
             time_spent.append(int(row[1]))
     plot_graph.plot_scatter(user_id,time_spent)
+    db.close()
 
 def bus_factor():
     db,cur=db_connect()
@@ -86,4 +113,5 @@ def bus_factor():
             'SELECT description,minutesSpent,user_id,story_id,backlog_id,task_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
     for row in cur.fetchall():
         print(row)
-bus_factor()
+    db.close()
+time_stats()
