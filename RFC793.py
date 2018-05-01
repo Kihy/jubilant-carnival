@@ -2,15 +2,18 @@ import MySQLdb
 from hash_extractor import *
 import plot_graph
 
+
 GET_EVERYTHING="""
 SELECT description AS story_description,
        name        AS story_name,
+       fullName,
        date,
        commit_description,
        minutesspent,
        user_id,
        task_id,
-       story_id
+       story_id,
+       storyPoints
 FROM   (SELECT date,
                hourentries.description AS commit_description,
                minutesspent,
@@ -22,17 +25,20 @@ FROM   (SELECT date,
                       ON tasks.id = hourentries.task_id)AS T
        LEFT JOIN stories
               ON stories.id = T.story_id
-WHERE  user_id IN ( 540, 548, 555, 560,
-                    578, 590, 605, 618 )
+       LEFT JOIN users
+   	      ON users.id=T.user_id
+WHERE  user_id IN ( {} )
        AND date >= "2018-03-26"
-       AND T.story_id IS NOT NULL
+       AND T.story_id {} NULL
 """
 def find_member(cursor):
     cursor.execute('SELECT id,fullName FROM users WHERE initials IN ("jto59","tke29","och26","ewi32","mjs351","dca87","ato47","jes143")')
     ids=[]
+    fullNames=[]
     for row in cursor.fetchall():
-        ids.append(str(int(row[0])))
-    return ",".join(ids)
+        ids.append(str(int(row['id'])))
+        fullNames.append(row['fullName'])
+    return ",".join(ids),fullNames
 
 def db_connect():
     db = MySQLdb.connect(host="mysql.cosc.canterbury.ac.nz",    # your host, usually localhost
@@ -42,20 +48,22 @@ def db_connect():
 
     # you must create a Cursor object. It will let
     #  you execute all the queries you need
-    return db, db.cursor()
+    return db, db.cursor(MySQLdb.cursors.DictCursor)
 
-def tag_stats():
+def tag_stats(task_with_out_story=True):
     db,cur=db_connect()
-    members=find_member(cur)
-    cur.execute(
-            'SELECT description FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
+    members,_=find_member(cur)
+    if task_with_out_story:
+        cur.execute(GET_EVERYTHING.format(members,"IS NOT"))
+    else:
+        cur.execute(GET_EVERYTHING.format(members,"IS"))
 
     counter=0
     hash_dict={'#invalid':0, '#none':0}
     invalid_dict={}
     for row in cur.fetchall():
         counter+=1
-        valid, invalid=extract_hash(row[0])
+        valid, invalid=extract_hash(row['commit_description'])
         if len(valid+invalid)==0:
             hash_dict['#none']+=1
             continue
@@ -70,48 +78,40 @@ def tag_stats():
             if bad not in invalid_dict.keys():
                 invalid_dict[bad]=0
             invalid_dict[bad]+=1
-    plot_pretty_graphs(hash_dict,invalid_dict)
+    plot_graph.plot_tags(hash_dict,invalid_dict)
     db.close()
 
-def plot_pretty_graphs(hash_dict,invalid_dict):
-    #plots summarized hashes
-    labels=[]
-    values=[]
-    explode=[]
-    for label,freq in hash_dict.items():
-        labels.append(label)
-        values.append(freq)
-        if label=='#invalid':
-            explode.append(0.05)
-        else:
-            explode.append(0)
-    plot_graph.plot_pie(labels,values,explode)
 
-    #plots invalid hashes
-    plot_graph.plot_pie(list(invalid_dict.keys()),list(invalid_dict.values()),startangle=0)
 
 def time_stats():
     db,cur=db_connect()
-    members=find_member(cur)
-    cur.execute(
-            'SELECT description,minutesSpent,user_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\" AND story_id != NULL'.format(members))
-    print('SELECT description,minutesSpent,user_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\" AND story_id != NULL'.format(members))
-    user_id=[]
+    members,_=find_member(cur)
+    cur.execute(GET_EVERYTHING.format(members,"IS NOT"))
+    name=[]
     time_spent=[]
     for row in cur.fetchall():
-        valid,invalid=extract_hash(row[0],"commits")
+        valid,invalid=extract_hash(row["commit_description"],"commits")
         if len(valid+invalid)!=0:
-            user_id.append(row[2])
-            time_spent.append(int(row[1]))
-    plot_graph.plot_scatter(user_id,time_spent)
+            name.append(row["fullName"])
+            time_spent.append(int(row["minutesspent"]))
+    plot_graph.plot_scatter(name,time_spent)
     db.close()
 
 def bus_factor():
+    """for each story find hours worked for each member"""
     db,cur=db_connect()
-    members=find_member(cur)
-    cur.execute(
-            'SELECT description,minutesSpent,user_id,story_id,backlog_id,task_id FROM hourentries WHERE user_id IN ({}) AND date >= \"2018-03-26\"'.format(members))
+    members,fullNames=find_member(cur)
+    cur.execute(GET_EVERYTHING.format(members,"IS NOT"))
+    story_dict={}
     for row in cur.fetchall():
-        print(row)
+        story_name=row["story_name"].split('.')[0]
+        if story_name not in story_dict.keys():
+            story_dict[story_name]={}
+        if row["fullName"] not in story_dict[story_name].keys():
+            story_dict[story_name][row["fullName"]]=0
+        story_dict[story_name][row["fullName"]]+=row["minutesspent"]
+    plot_graph.plot_stacked_bar(story_dict,fullNames)
     db.close()
+tag_stats()
 time_stats()
+bus_factor()
