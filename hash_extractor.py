@@ -13,3 +13,10 @@ def extract_hash(message,tag_specifier=""):
                 invalid.append(tag)
 
     return valid, invalid
+
+def find_pairs(message):
+    match=re.search(r"#pair\[(.*),(.*)\]",message)
+    if match:
+        return match.group(1,2)
+    else:
+        return None

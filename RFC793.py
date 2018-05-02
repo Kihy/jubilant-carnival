@@ -2,7 +2,6 @@ import MySQLdb
 from hash_extractor import *
 import plot_graph
 
-
 GET_EVERYTHING="""
 SELECT description AS story_description,
        name        AS story_name,
@@ -112,6 +111,14 @@ def bus_factor():
         story_dict[story_name][row["fullName"]]+=row["minutesspent"]
     plot_graph.plot_stacked_bar(story_dict,fullNames)
     db.close()
-tag_stats()
-time_stats()
-bus_factor()
+
+def pp_graph():
+    db,cur=db_connect()
+    members,_=find_member(cur)
+    cur.execute(GET_EVERYTHING.format(members,"IS NOT"))
+    for row in cur.fetchall():
+        pair= find_pairs(row["commit_description"])
+        if pair:
+            print(pair)
+
+pp_graph()
