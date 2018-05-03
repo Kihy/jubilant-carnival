@@ -19,7 +19,7 @@ def extract_hash(message, tag_specifier=""):
 
 
 def find_pairs(message):
-    match = re.search(r"#pair\[(.*),(.*)\]", message)
+    match = re.search(r"#pair\[(.*?),(.*?)\]", message)
     if match:
         return match.group(1, 2)
     else:

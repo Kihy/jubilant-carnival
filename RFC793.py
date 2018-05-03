@@ -134,5 +134,8 @@ def pp_graph():
                 G.add_edge(pair[0], pair[1], weight=1)
     plot_graph.draw_network(G)
 
-
-pp_graph()
+if __name__ == '__main__':
+    tag_stats()
+    time_stats()
+    bus_factor()
+    pp_graph()
