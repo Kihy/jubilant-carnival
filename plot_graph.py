@@ -62,15 +62,20 @@ def plot_pie(labels, sizes, explode=None, startangle=90):
     # plt.tight_layout()
 
 
-def plot_scatter(x, y, line_height=60):
-    plt.style.use('ggplot')
-    plt.scatter(x, y)
+def plot_scatter_with_line(x, y, line_height=60):
+    plot_scatter(x,y,"Commit Time analysis","Minutes Spent","Member",False)
     plt.axhline(line_height, ls='--', label="Recommended commit time(1 hr)")
-    plt.title("Commit time analysis")
-    plt.ylabel("Time(minutes)")
-    plt.xlabel("Members")
     plt.legend()
     plt.show()
+
+def plot_scatter(x,y,title,ylabel,xlabel,show=True):
+    plt.style.use('ggplot')
+    plt.scatter(x, y)
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    if show:
+        plt.show()
 
 
 def plot_stacked_bar(data, fullNames):

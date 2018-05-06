@@ -2,6 +2,13 @@ import MySQLdb
 from hash_extractor import *
 import plot_graph
 import networkx as nx
+import gitlab
+
+# private token or personal token authentication
+gl = gitlab.Gitlab('https://eng-git.canterbury.ac.nz/',
+                   private_token='e-bDxiWe5bwz43WnKUyU')
+projects = gl.projects.get('seng302-2018/team-700')
+
 
 GET_EVERYTHING = """
 SELECT description AS story_description,
@@ -36,12 +43,10 @@ WHERE  user_id IN ( {} )
 def find_member(cursor):
     cursor.execute(
         'SELECT id,fullName FROM users WHERE initials IN ("jto59","tke29","och26","ewi32","mjs351","dca87","ato47","jes143")')
-    ids = []
-    fullNames = []
+    member_map={}
     for row in cursor.fetchall():
-        ids.append(str(int(row['id'])))
-        fullNames.append(row['fullName'])
-    return ",".join(ids), fullNames
+        member_map[str(row['id'])]=row['fullName']
+    return member_map
 
 
 def db_connect():
@@ -57,11 +62,11 @@ def db_connect():
 
 def tag_stats(task_with_out_story=True):
     db, cur = db_connect()
-    members, _ = find_member(cur)
+    members = find_member(cur)
     if task_with_out_story:
-        cur.execute(GET_EVERYTHING.format(members, "IS NOT"))
+        cur.execute(GET_EVERYTHING.format(",".join(members.keys()), "IS NOT"))
     else:
-        cur.execute(GET_EVERYTHING.format(members, "IS"))
+        cur.execute(GET_EVERYTHING.format(",".join(members.keys()), "IS"))
 
     counter = 0
     hash_dict = {'#invalid': 0, '#none': 0}
@@ -89,24 +94,40 @@ def tag_stats(task_with_out_story=True):
 
 def time_stats():
     db, cur = db_connect()
-    members, _ = find_member(cur)
-    cur.execute(GET_EVERYTHING.format(members, "IS NOT"))
+    members = find_member(cur)
+    cur.execute(GET_EVERYTHING.format(",".join(members.keys()), "IS NOT"))
     name = []
+    mapped_name=[]
     time_spent = []
+    commit_length=[]
     for row in cur.fetchall():
-        valid, invalid = extract_hash(row["commit_description"], "commits")
-        if len(valid + invalid) != 0:
+        result = extract_commit(row["commit_description"])
+        if result:
+            total_length=0
+            result=result.split(",")
+            for i in result:
+                i=i.strip()
+                try:
+                    commit= projects.commits.get(i)
+                    total_length+=len(commit.message)
+                except Exception as e:
+                    print(i)
+                    commit= projects.commits.get("9951ea7e")
+                    total_length+=len(commit.message)
+            commit_length.append(total_length)
+
             name.append(row["fullName"])
             time_spent.append(int(row["minutesspent"]))
-    plot_graph.plot_scatter(name, time_spent)
+    plot_graph.plot_scatter_with_line(name, time_spent)
+    plot_graph.plot_scatter(time_spent,commit_length,name,"Commit Length Analysis","Gitlab commit length","Time spent")
     db.close()
 
 
 def bus_factor():
     """for each story find hours worked for each member"""
     db, cur = db_connect()
-    members, fullNames = find_member(cur)
-    cur.execute(GET_EVERYTHING.format(members, "IS NOT"))
+    members = find_member(cur)
+    cur.execute(GET_EVERYTHING.format(",".join(members.keys()), "IS NOT"))
     story_dict = {}
     for row in cur.fetchall():
         story_name = row["story_name"].split('.')[0]
@@ -115,15 +136,15 @@ def bus_factor():
         if row["fullName"] not in story_dict[story_name].keys():
             story_dict[story_name][row["fullName"]] = 0
         story_dict[story_name][row["fullName"]] += row["minutesspent"]
-    plot_graph.plot_stacked_bar(story_dict, fullNames)
+    plot_graph.plot_stacked_bar(story_dict, sorted(list(members.values())))
     db.close()
 
 
 def pp_graph():
     G = nx.Graph()
     db, cur = db_connect()
-    members, _ = find_member(cur)
-    cur.execute(GET_EVERYTHING.format(members, "IS NOT"))
+    members = find_member(cur)
+    cur.execute(GET_EVERYTHING.format(",".join(members.keys()), "IS NOT"))
     for row in cur.fetchall():
         pair = find_pairs(row["commit_description"])
         if pair:
@@ -135,7 +156,8 @@ def pp_graph():
     plot_graph.draw_network(G)
 
 if __name__ == '__main__':
+    bus_factor()
     tag_stats()
     time_stats()
-    bus_factor()
+
     pp_graph()
