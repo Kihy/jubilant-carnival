@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
 import networkx as nx
+from matplotlib import rcParams
+from networkx.drawing.nx_agraph import to_agraph
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['Arial']
 
 
 def draw_network(G):
@@ -13,14 +17,16 @@ def draw_network(G):
     # plt.show()
 
     weights = []
-    pos = nx.shell_layout(G)
-    for i in G.edges.data("weight"):
+    pos = nx.circular_layout(G)
+    for i in G.edges.data("frequency"):
         weights.append(i[2])
     nx.draw(G, pos, node_color=range(len(G.nodes)), edge_color=weights,
-            width=4, cmap=plt.cm.Pastel1, edge_cmap=plt.cm.tab20, with_labels=False)
+            width=4, cmap=plt.cm.Pastel1, edge_cmap=plt.cm.Pastel1, with_labels=False)
     for p in pos:  # raise text positions
         pos[p][1] -= 0.1
-    nx.draw_networkx_labels(G, pos)
+    # nx.draw_networkx_labels(G, pos)
+    nx.draw_networkx_edge_labels(G, pos)
+    print(to_agraph(G))
     plt.show()
 
 
@@ -37,15 +43,13 @@ def plot_tags(hash_dict, invalid_dict):
         else:
             explode.append(0)
 
-    plt.subplot(121)
-    plot_pie(labels, values, explode)
-    plt.title("Frequency of tags")
-    plt.suptitle("Analysis of tags excluding task with stories")
+    plot_pie(labels, values, explode, startangle=45)
+    plt.title("Frequency of Agilefant tags excluding task without story")
     # plots invalid hashes
-    plt.subplot(122)
+    plt.show()
     plot_pie(list(invalid_dict.keys()), list(
         invalid_dict.values()), startangle=45)
-    plt.title("Frequency of incorrect tags")
+    plt.title("Frequency of incorrect Agilefant tags excluding task without story")
     plt.show()
 
 
@@ -81,6 +85,7 @@ def plot_scatter(x,y,title,ylabel,xlabel,show=True):
 def plot_stacked_bar(data, fullNames):
     plt.style.use('seaborn-poster')
     story_names = sorted(list(data.keys()))
+    fullNames=list(map(int,fullNames))
     member_participation = [[0 for x in range(len(story_names))] for x in range(
         len(fullNames))]  # each row is a member, column is a story
     for i in range(len(story_names)):

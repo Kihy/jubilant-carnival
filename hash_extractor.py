@@ -1,15 +1,15 @@
 import re
 
-VALID_TAGS = ["#implement", "#test", "#document", "#testmanual",
-              "#fix", "#chore", "#refactor", "#pair", "#commits"]
+VALID_TAGS = ["implement", "test", "document", "testmanual",
+              "fix", "chore", "refactor", "pair", "commits"]
 
 
-def extract_hash(message, tag_specifier=""):
+def extract_hash(message, tag_specifier="(.[a-zA-Z]+)"):
     valid = []
     invalid = []
-    for i in message.split():
-        if i.startswith("#{}".format(tag_specifier)):
-            tag = re.sub('\[.*\]', '', i)
+    match=re.findall(r"#{}(\[.*\])?".format(tag_specifier),message)
+    if match:
+        for tag, bracket in match:
             if tag in VALID_TAGS:
                 valid.append(tag)
             else:
@@ -25,7 +25,7 @@ def extract_commit(message):
         return None
 
 def find_pairs(message):
-    match = re.search(r"#pair\[(.*?),(.*?)\]", message)
+    match = re.search(r"#pair\[(.*?) ?, ?(.*?)\]", message)
     if match:
         return match.group(1, 2)
     else:
